@@ -19,6 +19,7 @@ secrets/
 *.p12
 *.pfx
 *.crt
+deploy/*.local.md
 
 # Logs and local OS files
 *.log
