@@ -8,6 +8,7 @@
     <title>Remorse Chess</title>
     <link rel="stylesheet" href="/src/styles.css" />
     <link rel="stylesheet" href="/src/board-3d.css" />
+    <link rel="stylesheet" href="/src/dice-3d.css" />
   </head>
   <body>
     <main class="app-shell">
@@ -31,6 +32,7 @@
               <option value="black">Black</option>
             </select>
           </label>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span aria-hidden="true">◐</span></button>
           <details class="topbar-menu">
             <summary aria-label="Open match and lobby controls"><span aria-hidden="true">•••</span><span class="menu-label">Menu</span></summary>
             <div class="menu-panel">
@@ -95,6 +97,7 @@
         <div class="board-column">
           <div class="board-toolbar">
             <span class="board-prompt" id="activity-message">Create an invite or join a private match to begin.</span>
+            <span class="camera-help">Drag to orbit · Shift-drag to pan · Scroll to zoom</span>
             <div class="board-view-controls">
               <span class="revision" id="revision-label">PREVIEW</span>
               <button class="button button-quiet camera-reset" id="camera-reset" type="button" aria-label="Reset board camera">Reset view</button>

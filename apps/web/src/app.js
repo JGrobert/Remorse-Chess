@@ -2,6 +2,7 @@ import { previewSnapshot } from "./fixtures.js";
 import { getDieControlState } from "./die-controls.js";
 import { getCaptureDestinations, getDisplaySquares, getLegalDestinations } from "./rules.js";
 import { initializeBoardCamera, orientBoardForPlayer } from "./board-scene.js";
+import { createDieAnimator } from "./dice-scene.js";
 
 const glyphStatus = {
   devastated: { mark: "✕", label: "Devastated", effect: "will be removed when its turns run out" },
@@ -22,6 +23,7 @@ const elements = {
   dieFace: document.querySelector("#die-face"),
   dieCopy: document.querySelector("#die-copy"),
   dieNote: document.querySelector("#die-note"),
+  dieCube: document.querySelector("#die-cube"),
   roll: document.querySelector("#roll-die"),
   rollLabel: document.querySelector("#die-roll-label"),
   skip: document.querySelector("#skip-bonus"),
@@ -48,6 +50,7 @@ const elements = {
   leave: document.querySelector("#leave-room"),
   resign: document.querySelector("#resign"),
   orientation: document.querySelector("#orientation"),
+  themeToggle: document.querySelector("#theme-toggle"),
   promotion: document.querySelector("#promotion-dialog"),
   toast: document.querySelector("#toast"),
 };
@@ -77,6 +80,25 @@ let lobbyOutgoing = [];
 let demoMessage = "Create an invite or join a private match to begin.";
 let bottomColor = "white";
 let toastTimer;
+let rollAnimationStartedAt = 0;
+let rollLandingTimer = 0;
+const dieAnimator = createDieAnimator(elements.dieCube);
+if (snapshot.lastRoll?.face) dieAnimator.showFace(snapshot.lastRoll.face);
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  document.querySelector('meta[name="theme-color"]').content = isDark ? "#111713" : "#f5f5f1";
+  elements.themeToggle.setAttribute("aria-pressed", String(isDark));
+  elements.themeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  elements.themeToggle.title = isDark ? "Switch to light mode" : "Switch to dark mode";
+  localStorage.setItem("remorse-theme", isDark ? "dark" : "light");
+}
+
+applyTheme(localStorage.getItem("remorse-theme") === "dark" ? "dark" : "light");
+elements.themeToggle.addEventListener("click", () => {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+});
 
 elements.lobbyName.value = sessionStorage.getItem("remorse-lobby-name") ?? "";
 
@@ -111,6 +133,10 @@ function clearRoomStorage() {
 function setGameState(next) {
   if (!next || typeof next.revision !== "number") return;
   if (snapshot && next.matchId === snapshot.matchId && next.revision < snapshot.revision) return;
+  const resolvedRoll = snapshot?.phase.kind === "awaiting-roll"
+    && next.phase.kind !== "awaiting-roll"
+    ? next.phase.kind === "awaiting-bonus" ? next.phase.roll : next.lastRoll
+    : null;
   const changedRoom = !snapshot || snapshot.matchId !== next.matchId;
   snapshot = next;
   demoMode = false;
@@ -125,6 +151,19 @@ function setGameState(next) {
   actionIds.clear();
   if (changedRoom) {
     elements.activity.textContent = `Game ${next.matchId.slice(0, 8)} is ready.`;
+  }
+  if (resolvedRoll?.face) {
+    const face = resolvedRoll.face;
+    if (rollLandingTimer) clearTimeout(rollLandingTimer);
+    if (rollAnimationStartedAt) {
+      const remaining = Math.max(0, 900 - (performance.now() - rollAnimationStartedAt));
+      rollLandingTimer = setTimeout(() => dieAnimator.land(face), remaining);
+    } else {
+      dieAnimator.rollTo(face);
+    }
+    rollAnimationStartedAt = 0;
+  } else if (changedRoom && next.lastRoll?.face) {
+    dieAnimator.showFace(next.lastRoll.face);
   }
   render();
 }
@@ -633,6 +672,11 @@ function startSocket() {
     socket.on("disconnect", () => {
       connected = false;
       autoSessionSent = false;
+      if (snapshot.phase.kind === "awaiting-roll") {
+        rollAnimationStartedAt = 0;
+        if (rollLandingTimer) clearTimeout(rollLandingTimer);
+        dieAnimator.reset();
+      }
       setConnection("offline", "Reconnecting");
       render();
     });
@@ -669,6 +713,9 @@ function startSocket() {
         inviteCode = null;
         setGameState(message.state);
       } else if (message.type === "room-closed") {
+        rollAnimationStartedAt = 0;
+        if (rollLandingTimer) clearTimeout(rollLandingTimer);
+        dieAnimator.reset();
         roomId = null;
         seatColor = null;
         inviteCode = null;
@@ -681,6 +728,11 @@ function startSocket() {
         showToast("This private match has ended because both players left.");
         render();
       } else if (message.type === "error") {
+        if (snapshot.phase.kind === "awaiting-roll") {
+          rollAnimationStartedAt = 0;
+          if (rollLandingTimer) clearTimeout(rollLandingTimer);
+          dieAnimator.reset();
+        }
         pendingAction = null;
         if (message.code === "room-unavailable" && pendingJoin) {
           pendingJoin = false;
@@ -793,11 +845,18 @@ elements.lobbyLeave.addEventListener("click", () => {
   if (!lobbySelf) return;
   submitLobbyCommand({ type: "leave", guestToken: lobbySelf.guestToken });
 });
-elements.roll.addEventListener("click", () => emitAction({ type: "request-roll" }));
+elements.roll.addEventListener("click", () => {
+  rollAnimationStartedAt = performance.now();
+  dieAnimator.startRoll();
+  emitAction({ type: "request-roll" });
+});
 elements.skip.addEventListener("click", () => emitAction({ type: "skip-bonus" }));
 elements.resign.addEventListener("click", () => emitAction({ type: "resign" }));
 elements.leave.addEventListener("click", () => {
   if (socket && connected) socket.disconnect();
+  rollAnimationStartedAt = 0;
+  if (rollLandingTimer) clearTimeout(rollLandingTimer);
+  dieAnimator.reset();
   connected = false;
   roomId = null;
   seatColor = null;
