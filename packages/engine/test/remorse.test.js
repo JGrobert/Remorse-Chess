@@ -171,13 +171,18 @@ test("expiration exposing the mover's king loses the game", () => {
   assert.deepEqual(next.phase, { kind: "finished", result: { kind: "win", winner: "black", reason: "king-exposed" } });
 });
 
-test("a newly rolled six does not grant a same-turn Psycho bonus", () => {
+test("a newly rolled six grants one same-turn Psycho capture without a second roll", () => {
   const pending = engine.applyAction(rookCapture([piece("bn", "black", "knight", "b7")]), "white", {
     type: "move", move: { from: "a1", to: "a7" },
   });
-  const next = engine.applyAction(pending, "white", { type: "resolve-roll", captureId: pending.phase.capture.id, face: 6 });
-  assert.equal(next.phase.kind, "active");
-  assert.equal(next.position.pieces.find(({ id }) => id === "wr").status.kind, "psycho");
+  const bonus = engine.applyAction(pending, "white", { type: "resolve-roll", captureId: pending.phase.capture.id, face: 6 });
+  assert.equal(bonus.phase.kind, "awaiting-bonus");
+  const settled = engine.applyAction(bonus, "white", { type: "bonus-move", move: { from: "a7", to: "b7" } });
+  assert.equal(settled.phase.kind, "active");
+  assert.equal(settled.position.activeColor, "black");
+  assert.equal(settled.position.pieces.find(({ id }) => id === "wr").square, "b7");
+  assert.equal(settled.position.pieces.find(({ id }) => id === "wr").status.kind, "psycho");
+  assert.equal(settled.lastRoll.face, 6);
 });
 
 test("a pre-existing Psycho piece may skip its bonus; the first roll applies only at settlement", () => {

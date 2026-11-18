@@ -403,7 +403,7 @@ function resolveRoll(state: GameSnapshot, actor: Color, captureId: string, face:
   const roll = rollResult(face, piece);
   const board = createBoard(state.position.pieces);
   const from = toIndex(piece.square);
-  const canBonus = piece.status?.kind === "psycho"
+  const canBonus = (piece.status?.kind === "psycho" || roll.effect === "psycho")
     && legalCandidates(board, state.position, from, piece).some(({ capturedAt }) => capturedAt !== undefined);
   const withRoll = { ...state, revision: state.revision + 1, lastRoll: roll };
   if (canBonus) return { ...withRoll, phase: { kind: "awaiting-bonus", player: actor, capture: phase.capture, roll } };
@@ -418,8 +418,8 @@ function resolveBonus(state: GameSnapshot, actor: Color, move: MoveInput): GameS
   if (move.from !== piece.square) throw new Error("A Psycho bonus must use the same capturing piece");
   const { next, capturedPiece } = movePiece(state, actor, move);
   if (!capturedPiece) throw new Error("A Psycho bonus move must capture");
-  // Psycho is already established before the first capture. The first roll is applied only now,
-  // after this optional capture, and this second capture never opens another roll.
+  // Apply the first roll only after this optional capture, so it cannot cancel the earned bonus.
+  // The bonus capture never opens another roll.
   return settleRoll(next, actor, phase.roll);
 }
 function initialPieces(): ChessPiece[] {
