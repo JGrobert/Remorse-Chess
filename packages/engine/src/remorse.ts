@@ -253,7 +253,7 @@ function isBishopLanding(board: Board, from: number, piece: ChessPiece): boolean
 function rescueAdjacent(pieces: readonly ChessPiece[], landing: Square, color: Color): ChessPiece[] {
   const center = toIndex(landing);
   return pieces.map((piece) => {
-    if (piece.color !== color || (piece.status?.kind !== "devastated" && piece.status?.kind !== "guilty")) return piece;
+    if (piece.color !== color || piece.type === "bishop" || (piece.status?.kind !== "devastated" && piece.status?.kind !== "guilty")) return piece;
     const index = toIndex(piece.square);
     if (Math.max(Math.abs(fileOf(index) - fileOf(center)), Math.abs(rankOf(index) - rankOf(center))) !== 1) return piece;
     const { status: _status, ...rescued } = piece;
@@ -275,18 +275,21 @@ function statusFor(effect: RollEffect): PieceStatus | undefined {
 function setPieceStatus(pieces: readonly ChessPiece[], id: string, status: PieceStatus): ChessPiece[] {
   return pieces.map((piece) => piece.id === id ? { ...piece, status } : piece);
 }
-function applyRollAndExpire(pieces: readonly ChessPiece[], roll: RollResult | undefined): ChessPiece[] {
+function applyRollAndExpire(pieces: readonly ChessPiece[], roll: RollResult | undefined, movedPieceIds: readonly string[]): ChessPiece[] {
   let next = [...pieces];
   const newStatus = roll ? statusFor(roll.effect) : undefined;
   if (roll && newStatus) next = setPieceStatus(next, roll.pieceId, newStatus);
   const freshId = newStatus ? roll?.pieceId : undefined;
+  const moveCounts = new Map<string, number>();
+  for (const id of movedPieceIds) moveCounts.set(id, (moveCounts.get(id) ?? 0) + 1);
   const settled: ChessPiece[] = [];
   for (const piece of next) {
     const status = piece.status;
-    if (!status || piece.id === freshId) {
+    const movesMade = moveCounts.get(piece.id) ?? 0;
+    if (!status || piece.id === freshId || movesMade === 0) {
       settled.push(piece);
-    } else if (status.remainingTurns > 1) {
-      settled.push({ ...piece, status: { ...status, remainingTurns: status.remainingTurns - 1 } });
+    } else if (status.remainingTurns > movesMade) {
+      settled.push({ ...piece, status: { ...status, remainingTurns: status.remainingTurns - movesMade } });
     } else if (status.kind !== "devastated") {
       const { status: _status, ...rescued } = piece;
       settled.push(rescued);
@@ -305,8 +308,8 @@ function revokeRightsForRemovedRook(position: BoardPosition, removed: readonly C
   return rights;
 }
 function isBareKings(pieces: readonly ChessPiece[]): boolean { return pieces.length === 2 && pieces.every((piece) => piece.type === "king"); }
-function finishTurn(state: GameSnapshot, actor: Color, roll?: RollResult): GameSnapshot {
-  let pieces = applyRollAndExpire(state.position.pieces, roll);
+function finishTurn(state: GameSnapshot, actor: Color, roll: RollResult | undefined, movedPieceIds: readonly string[]): GameSnapshot {
+  let pieces = applyRollAndExpire(state.position.pieces, roll, movedPieceIds);
   const removed = state.position.pieces.filter((piece) => !pieces.some((next) => next.id === piece.id));
   const rights = revokeRightsForRemovedRook(state.position, removed);
   const position: BoardPosition = {
@@ -340,6 +343,7 @@ function createCaptureId(state: GameSnapshot): string { return `${state.matchId}
 function movePiece(state: GameSnapshot, actor: Color, move: MoveInput): {
   readonly next: GameSnapshot;
   readonly movingPiece: ChessPiece;
+  readonly movedPieceIds: readonly string[];
   readonly capturedPiece?: ChessPiece;
   readonly candidate: CandidateMove;
 } {
@@ -352,6 +356,13 @@ function movePiece(state: GameSnapshot, actor: Color, move: MoveInput): {
   const capturedPiece = candidate.capturedAt === undefined ? undefined : board[candidate.capturedAt];
   const captureSquare = candidate.capturedAt === undefined ? undefined : toSquare(candidate.capturedAt);
   let movedBoard = applyCandidate(board, piece, from, candidate, move.promotion);
+  const movedPieceIds = [piece.id];
+  if (candidate.castle) {
+    const homeRank = piece.color === "white" ? 0 : 7;
+    const rookFrom = homeRank * 8 + (candidate.castle === "kingSide" ? 7 : 0);
+    const rook = board[rookFrom];
+    if (rook) movedPieceIds.push(rook.id);
+  }
   let pieces = movedBoard.filter((item): item is ChessPiece => item !== undefined);
   const didBishopLand = isBishopLanding(movedBoard, from, piece);
   if (didBishopLand) pieces = rescueAdjacent(pieces, toSquare(candidate.to), actor);
@@ -367,15 +378,15 @@ function movePiece(state: GameSnapshot, actor: Color, move: MoveInput): {
   };
   movedBoard = createBoard(pieces);
   const next: GameSnapshot = { ...state, revision: state.revision + 1, position: nextPosition, phase: { kind: "active" } };
-  return { next, movingPiece: piece, ...(capturedPiece ? { capturedPiece } : {}), candidate };
+  return { next, movingPiece: piece, movedPieceIds, ...(capturedPiece ? { capturedPiece } : {}), candidate };
 }
 function ensureActor(actor: Color, expected: Color): void {
   if (actor !== expected) throw new Error("It is not this player's turn");
 }
 function resolveFirstMove(state: GameSnapshot, actor: Color, move: MoveInput): GameSnapshot {
   ensureActor(actor, state.position.activeColor);
-  const { next, movingPiece, capturedPiece, candidate } = movePiece(state, actor, move);
-  if (!capturedPiece) return finishTurn(next, actor);
+  const { next, movingPiece, movedPieceIds, capturedPiece, candidate } = movePiece(state, actor, move);
+  if (!capturedPiece) return finishTurn(next, actor, undefined, movedPieceIds);
   const capture = {
     id: createCaptureId(state),
     capturingPieceId: movingPiece.id,
@@ -388,9 +399,9 @@ function resolveFirstMove(state: GameSnapshot, actor: Color, move: MoveInput): G
     phase: { kind: "awaiting-roll", player: actor, capture },
   };
 }
-function settleRoll(state: GameSnapshot, actor: Color, roll: RollResult): GameSnapshot {
+function settleRoll(state: GameSnapshot, actor: Color, roll: RollResult, movedPieceIds: readonly string[]): GameSnapshot {
   const next = { ...state, lastRoll: roll };
-  return finishTurn(next, actor, roll);
+  return finishTurn(next, actor, roll, movedPieceIds);
 }
 function resolveRoll(state: GameSnapshot, actor: Color, captureId: string, face: DieFace): GameSnapshot {
   if (![1, 2, 3, 4, 5, 6].includes(face)) throw new Error("A die face must be between one and six");
@@ -407,7 +418,7 @@ function resolveRoll(state: GameSnapshot, actor: Color, captureId: string, face:
     && legalCandidates(board, state.position, from, piece).some(({ capturedAt }) => capturedAt !== undefined);
   const withRoll = { ...state, revision: state.revision + 1, lastRoll: roll };
   if (canBonus) return { ...withRoll, phase: { kind: "awaiting-bonus", player: actor, capture: phase.capture, roll } };
-  return settleRoll(withRoll, actor, roll);
+  return settleRoll(withRoll, actor, roll, [phase.capture.capturingPieceId]);
 }
 function resolveBonus(state: GameSnapshot, actor: Color, move: MoveInput): GameSnapshot {
   const phase = state.phase;
@@ -416,11 +427,11 @@ function resolveBonus(state: GameSnapshot, actor: Color, move: MoveInput): GameS
   const piece = state.position.pieces.find(({ id }) => id === phase.capture.capturingPieceId);
   if (!piece) throw new Error("The capturing piece is no longer on the board");
   if (move.from !== piece.square) throw new Error("A Psycho bonus must use the same capturing piece");
-  const { next, capturedPiece } = movePiece(state, actor, move);
+  const { next, movingPiece, capturedPiece } = movePiece(state, actor, move);
   if (!capturedPiece) throw new Error("A Psycho bonus move must capture");
   // Apply the first roll only after this optional capture, so it cannot cancel the earned bonus.
   // The bonus capture never opens another roll.
-  return settleRoll(next, actor, phase.roll);
+  return settleRoll(next, actor, phase.roll, [phase.capture.capturingPieceId, movingPiece.id]);
 }
 function initialPieces(): ChessPiece[] {
   const pieces: ChessPiece[] = [];
@@ -471,7 +482,7 @@ export class RemorseChessEngine implements GameEngine {
     if (action.type === "skip-bonus") {
       if (state.phase.kind !== "awaiting-bonus") throw new Error("There is no Psycho bonus to skip");
       ensureActor(actor, state.phase.player);
-      return settleRoll({ ...state, revision: state.revision + 1 }, actor, state.phase.roll);
+      return settleRoll({ ...state, revision: state.revision + 1 }, actor, state.phase.roll, [state.phase.capture.capturingPieceId]);
     }
     if (action.type === "bonus-move") return resolveBonus(state, actor, action.move);
     if (action.type === "move") {

@@ -12,6 +12,7 @@ export type ModifierKind = "devastated" | "guilty" | "psycho";
 
 export interface PieceStatus {
   readonly kind: ModifierKind;
+  /** Moves remaining for this piece before its status expires. */
   readonly remainingTurns: number;
 }
 

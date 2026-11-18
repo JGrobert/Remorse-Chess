@@ -3,7 +3,7 @@ import { getDieControlState } from "./die-controls.js";
 import { getCaptureDestinations, getDisplaySquares, getLegalDestinations, pieceGlyph, pieceName } from "./rules.js";
 
 const glyphStatus = {
-  devastated: { mark: "✕", label: "Devastated", effect: "will be removed when its turns run out" },
+  devastated: { mark: "✕", label: "Devastated", effect: "will be removed when its moves run out" },
   guilty: { mark: "!", label: "Guilty", effect: "cannot capture" },
   psycho: { mark: "⚡", label: "Psycho", effect: "may take one bonus capture" },
 };
@@ -129,7 +129,7 @@ function boardPieces() {
 
 function describePiece(piece) {
   if (!piece) return "empty square";
-  const status = piece.status ? `, ${glyphStatus[piece.status.kind]?.label ?? piece.status.kind}, ${piece.status.remainingTurns} turns remaining` : "";
+  const status = piece.status ? `, ${glyphStatus[piece.status.kind]?.label ?? piece.status.kind}, ${piece.status.remainingTurns} moves remaining` : "";
   return `${playerLabel(piece.color)} ${piece.type}${status}`;
 }
 
@@ -139,7 +139,7 @@ function createChip(status) {
   const chip = document.createElement("span");
   chip.className = `status-chip ${status.kind}`;
   chip.textContent = `${definition.mark}${status.remainingTurns}`;
-  chip.setAttribute("aria-label", `${definition.label}, ${status.remainingTurns} turns remaining`);
+  chip.setAttribute("aria-label", `${definition.label}, ${status.remainingTurns} moves remaining`);
   return chip;
 }
 
@@ -379,7 +379,7 @@ function render() {
   renderLobby();
   const canSelect = demoMode || (connected && Boolean(roomId) && opponentJoined && !pendingAction);
   if (demoMode) {
-    elements.caption.textContent = "Preview board · status chips show their remaining turns.";
+    elements.caption.textContent = "Preview board · status chips show how many moves each piece has left.";
   } else if (snapshot.phase.kind === "awaiting-roll") {
     elements.caption.textContent = "No moves until the capturing player resolves the die.";
   } else if (snapshot.phase.kind === "awaiting-bonus") {
