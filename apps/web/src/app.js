@@ -1,6 +1,6 @@
 import { previewSnapshot } from "./fixtures.js";
 import { getDieControlState } from "./die-controls.js";
-import { getCaptureDestinations, getDisplaySquares, getLegalDestinations } from "./rules.js";
+import { getCaptureDestinations, getDisplaySquares, getLegalDestinations, pieceGlyph } from "./rules.js";
 import { initializeBoardCamera, orientBoardForPlayer } from "./board-scene.js";
 import { createDieAnimator } from "./dice-scene.js";
 
@@ -196,23 +196,6 @@ function createChip(status) {
   return chip;
 }
 
-function createPieceSculpture(piece) {
-  const sculpture = document.createElement("span");
-  sculpture.className = `piece-sculpture ${piece.type} ${piece.color}-model`;
-  sculpture.setAttribute("aria-hidden", "true");
-  const base = document.createElement("span");
-  base.className = "piece-base";
-  const upright = document.createElement("span");
-  upright.className = "piece-upright";
-  for (const part of ["piece-stem", "piece-collar", "piece-cap"]) {
-    const shape = document.createElement("span");
-    shape.className = part;
-    upright.append(shape);
-  }
-  sculpture.append(base, upright);
-  return sculpture;
-}
-
 function renderBoard() {
   initializeBoardCamera(elements.board);
   orientBoardForPlayer(elements.board, bottomColor);
@@ -262,7 +245,11 @@ function renderBoard() {
       button.classList.add("has-piece");
       const token = document.createElement("span");
       token.className = `piece-token ${piece.color}-piece`;
-      token.append(createPieceSculpture(piece));
+      const glyph = document.createElement("span");
+      glyph.className = "piece-glyph";
+      glyph.textContent = pieceGlyph(piece);
+      glyph.setAttribute("aria-hidden", "true");
+      token.append(glyph);
       if (piece.status) {
         const chip = createChip(piece.status);
         if (chip) token.append(chip);

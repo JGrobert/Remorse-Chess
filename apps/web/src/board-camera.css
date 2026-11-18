@@ -1,0 +1,110 @@
+/* Keep the board as a screen-flat surface. Dragging only rotates it in-plane. */
+.board-camera-stage {
+  touch-action: none;
+  overflow: visible;
+}
+
+.board-camera-stage .board {
+  overflow: visible;
+  border: 9px solid #9c6738;
+  border-radius: 13px;
+  background: #9c6738;
+  box-shadow: 0 5px 0 #734a2a, 0 9px 0 #d0aa74, 0 20px 28px #6a58333a;
+  transform: rotateZ(var(--camera-rotation, 0deg)) scale(var(--camera-fit, 1)) scale(var(--camera-zoom, 1));
+  transform-origin: 50% 50%;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.board-camera-stage .board:active { cursor: grabbing; }
+.board-camera-stage .square { touch-action: none; }
+.board-camera-stage .square.light { background: #e8d4aa; }
+.board-camera-stage .square.dark { background: #ae7b51; }
+.board-camera-stage .square.legal::after { z-index: 3; width: 19%; height: 19%; background: #314a3db8; }
+.board-camera-stage .square.legal.has-piece::after {
+  width: 82%;
+  height: 82%;
+  border: 4px solid #314a3db8;
+  background: transparent;
+}
+.board-camera-stage .square.last-move { background-image: linear-gradient(#f5d7636b, #f5d7636b); }
+.board-camera-stage .square:focus-visible { z-index: 5; outline: 3px solid #2f6385; outline-offset: -5px; }
+
+.board-camera-stage .piece-token {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  pointer-events: none;
+  filter: none;
+}
+.board-camera-stage .piece-glyph {
+  font-family: 'DejaVu Sans', 'Segoe UI Symbol', 'Noto Sans Symbols 2', serif;
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 1;
+}
+.board-camera-stage .white-piece .piece-glyph {
+  color: #fffdf2;
+  text-shadow: 0 1px 2px #192119, 0 0 4px #192119;
+}
+.board-camera-stage .black-piece .piece-glyph {
+  color: #26302a;
+  text-shadow: 0 1px #bbc5b8;
+}
+.board-camera-stage .status-chip {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: 2%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 38%;
+  height: 22%;
+  padding: 0 4%;
+  border: 1.5px solid #fff8;
+  border-radius: 50%;
+  color: #fff;
+  font: 800 clamp(7px, 0.8vw, 11px)/1 ui-monospace, monospace;
+  white-space: nowrap;
+  box-shadow: 0 2px 0 #33414c, 0 3px 4px #19252c61, inset 0 1px 2px #ffffff91;
+  transform: translateX(-50%);
+  text-shadow: 0 1px 1px #26333a;
+}
+.board-camera-stage .status-chip-symbol { font-size: 1.05em; }
+.board-camera-stage .status-chip.devastated { background: linear-gradient(135deg, #f07b71, #bd393c 66%, #862b36); }
+.board-camera-stage .status-chip.guilty { color: #2c2415; background: linear-gradient(135deg, #ffdc79, #d9912d 66%, #a66224); text-shadow: 0 1px #fff4c7; }
+.board-camera-stage .status-chip.psycho { background: linear-gradient(135deg, #caa2ff, #8052c2 66%, #553586); }
+
+.board-camera-stage .square-coordinate {
+  position: absolute;
+  z-index: 5;
+  color: #3d4a43;
+  font: 700 clamp(7px, 0.72vw, 10px)/1 ui-monospace, monospace;
+  text-shadow: 0 1px 0 #fff7;
+  opacity: .76;
+  pointer-events: none;
+}
+.board-camera-stage .file-coordinate { right: 5%; bottom: 4%; }
+.board-camera-stage .rank-coordinate { top: 4%; left: 5%; }
+
+#camera-reset {
+  border: 1px solid #d4dbe0;
+  border-radius: 999px;
+  color: #415560;
+  background: #fff;
+  box-shadow: 0 2px 6px #21303913;
+  cursor: pointer;
+}
+#camera-reset:hover { background: #f3f6f7; }
+#camera-reset:focus-visible { outline: 3px solid #447d9b; outline-offset: 2px; }
+
+@media (max-width: 650px) {
+  .board-camera-stage .board { border-width: 6px; border-radius: 9px; }
+  .board-camera-stage .piece-glyph { font-size: clamp(30px, 9vw, 48px); }
+  .board-camera-stage .square.legal.has-piece::after { border-width: 3px; }
+  .board-camera-stage .status-chip { min-width: 46%; height: 24%; font-size: 8px; }
+}
