@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#101815" />
+    <meta name="theme-color" content="#f5f5f1" />
     <meta name="description" content="Play a private game of Remorse Chess." />
     <title>Remorse Chess</title>
     <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/board-3d.css" />
+    <link rel="stylesheet" href="/src/dice-3d.css" />
   </head>
   <body>
     <main class="app-shell">
@@ -15,107 +17,124 @@
           <span class="brand-mark" aria-hidden="true">♞</span>
           <span>Remorse <span class="brand-light">Chess</span></span>
         </a>
-        <div class="connection" id="connection-status" aria-live="polite">
-          <span class="connection-dot"></span><span>Connecting</span>
+        <div class="turn-status" aria-live="polite">
+          <span class="turn-indicator" id="turn-indicator"></span>
+          <span id="turn-label">Preview board</span>
+        </div>
+        <div class="topbar-actions">
+          <div class="connection" id="connection-status" aria-live="polite">
+            <span class="connection-dot"></span><span>Connecting</span>
+          </div>
+          <label class="orientation-control" for="orientation">
+            <span class="orientation-label">Front</span>
+            <select id="orientation" aria-label="Player's side of the board">
+              <option value="white">White</option>
+              <option value="black">Black</option>
+            </select>
+          </label>
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false"><span aria-hidden="true">◐</span></button>
+          <details class="topbar-menu">
+            <summary aria-label="Open match and lobby controls"><span aria-hidden="true">•••</span><span class="menu-label">Menu</span></summary>
+            <div class="menu-panel">
+              <section id="lobby-controls" aria-label="Private match and guest lobby">
+                <h2>Start or join a game</h2>
+                <p>Invite one person with a link. No account needed.</p>
+                <button class="button button-primary full-width" id="create-room" type="button">Create private invite <span aria-hidden="true">↗</span></button>
+                <button class="button button-secondary full-width rejoin-button" id="rejoin-room" type="button" hidden>Rejoin your last match</button>
+                <div class="divider"><span>or join a game</span></div>
+                <form id="join-form">
+                  <label for="invite-code">Invite code</label>
+                  <div class="join-row">
+                    <input id="invite-code" name="inviteCode" type="text" placeholder="Paste a code or link" autocomplete="off" />
+                    <button class="button button-secondary" type="submit">Join</button>
+                  </div>
+                </form>
+                <section class="guest-lobby" aria-labelledby="guest-lobby-heading">
+                  <p class="eyebrow">OPTIONAL LOBBY</p>
+                  <h2 id="guest-lobby-heading">Meet another guest</h2>
+                  <p class="guest-lobby-copy">Join while you are online to appear as available. Private matches stay unlisted.</p>
+                  <div id="guest-lobby-entry" class="lobby-entry">
+                    <label for="lobby-display-name">Guest name</label>
+                    <div class="join-row">
+                      <input id="lobby-display-name" type="text" maxlength="24" placeholder="Choose a name" autocomplete="nickname" />
+                      <button class="button button-secondary" id="lobby-join" type="button">Join lobby</button>
+                    </div>
+                  </div>
+                  <p class="lobby-status" id="lobby-status" aria-live="polite">Opt in to appear to other online guests.</p>
+                  <div class="lobby-directory" id="lobby-directory" hidden>
+                    <h3>Online guests</h3>
+                    <ul class="lobby-list" id="lobby-online"></ul>
+                    <h3>Challenges</h3>
+                    <div class="lobby-challenges" id="lobby-challenges"></div>
+                    <button class="button button-quiet full-width" id="lobby-leave" type="button">Leave lobby</button>
+                  </div>
+                </section>
+              </section>
+              <section id="room-controls" aria-label="Current match" hidden>
+                <div class="room-title-row">
+                  <div><p class="eyebrow">PRIVATE MATCH</p><h2 id="room-title">Game room</h2></div>
+                  <span class="seat-pill" id="seat-label">White seat</span>
+                </div>
+                <p id="room-message" class="room-message">Waiting for the other player.</p>
+                <div id="invite-share" class="invite-share" hidden>
+                  <label for="invite-link">Share this invite</label>
+                  <div class="join-row">
+                    <input id="invite-link" readonly />
+                    <button class="button button-secondary" id="copy-invite" type="button">Copy</button>
+                  </div>
+                </div>
+                <div class="room-actions">
+                  <button class="button button-quiet" id="leave-room" type="button">Leave game</button>
+                  <button class="button button-danger" id="resign" type="button">Resign</button>
+                </div>
+              </section>
+            </div>
+          </details>
         </div>
       </header>
-
-      <section class="page-heading">
-        <div>
-          <p class="eyebrow">PRIVATE MATCHES</p>
-          <h1>Play the turn.<br /><span>Face the roll.</span></h1>
-          <p class="intro">Chess stays classic. After a capture, the die decides what your piece carries forward.</p>
-        </div>
-        <aside class="room-card" aria-label="Private match controls">
-          <div id="lobby-controls">
-            <h2>Start a private game</h2>
-            <p>Invite one person with a link. No account needed.</p>
-            <button class="button button-primary full-width" id="create-room" type="button">Create private invite <span aria-hidden="true">↗</span></button>
-            <button class="button button-secondary full-width rejoin-button" id="rejoin-room" type="button" hidden>Rejoin your last match</button>
-            <div class="divider"><span>or join a game</span></div>
-            <form id="join-form">
-              <label for="invite-code">Invite code</label>
-              <div class="join-row">
-                <input id="invite-code" name="inviteCode" type="text" placeholder="Paste a code or link" autocomplete="off" />
-                <button class="button button-secondary" type="submit">Join</button>
-              </div>
-            </form>
-            <section class="guest-lobby" aria-labelledby="guest-lobby-heading">
-              <p class="eyebrow">OPTIONAL LOBBY</p>
-              <h2 id="guest-lobby-heading">Meet another guest</h2>
-              <p class="guest-lobby-copy">Join while you are online to appear as available. Private matches stay unlisted.</p>
-              <div id="guest-lobby-entry" class="lobby-entry">
-                <label for="lobby-display-name">Guest name</label>
-                <div class="join-row">
-                  <input id="lobby-display-name" type="text" maxlength="24" placeholder="Choose a name" autocomplete="nickname" />
-                  <button class="button button-secondary" id="lobby-join" type="button">Join lobby</button>
-                </div>
-              </div>
-              <p class="lobby-status" id="lobby-status" aria-live="polite">Opt in to appear to other online guests.</p>
-              <div class="lobby-directory" id="lobby-directory" hidden>
-                <h3>Online guests</h3>
-                <ul class="lobby-list" id="lobby-online"></ul>
-                <h3>Challenges</h3>
-                <div class="lobby-challenges" id="lobby-challenges"></div>
-                <button class="button button-quiet full-width" id="lobby-leave" type="button">Leave lobby</button>
-              </div>
-            </section>
-          </div>
-          <div id="room-controls" hidden>
-            <div class="room-title-row">
-              <div><p class="eyebrow">PRIVATE MATCH</p><h2 id="room-title">Game room</h2></div>
-              <span class="seat-pill" id="seat-label">White seat</span>
-            </div>
-            <p id="room-message" class="room-message">Waiting for the other player.</p>
-            <div id="invite-share" class="invite-share" hidden>
-              <label for="invite-link">Share this invite</label>
-              <div class="join-row">
-                <input id="invite-link" readonly />
-                <button class="button button-secondary" id="copy-invite" type="button">Copy</button>
-              </div>
-            </div>
-            <div class="room-actions">
-              <button class="button button-quiet" id="leave-room" type="button">Leave game</button>
-              <button class="button button-danger" id="resign" type="button">Resign</button>
-            </div>
-          </div>
-        </aside>
-      </section>
 
       <section class="play-area" aria-label="Chess game">
         <div class="board-column">
           <div class="board-toolbar">
-            <div class="turn-status" aria-live="polite">
-              <span class="turn-indicator" id="turn-indicator"></span>
-              <span id="turn-label">Preview board</span>
+            <span class="board-prompt" id="activity-message">Create an invite or join a private match to begin.</span>
+            <span class="camera-help">Drag to orbit · Shift-drag to pan · Scroll to zoom</span>
+            <div class="board-view-controls">
+              <span class="revision" id="revision-label">PREVIEW</span>
+              <button class="button button-quiet camera-reset" id="camera-reset" type="button" aria-label="Reset board camera">Reset view</button>
             </div>
-            <label class="orientation-control" for="orientation">
-              <span>View</span>
-              <select id="orientation" aria-label="Board orientation">
-                <option value="white">White at bottom</option>
-                <option value="black">Black at bottom</option>
-              </select>
-            </label>
           </div>
-          <div class="board-wrap">
-            <div class="rank-labels" id="rank-labels" aria-hidden="true"></div>
-            <div class="board" id="board" role="grid" aria-label="Chessboard"></div>
-            <div class="file-labels" id="file-labels" aria-hidden="true"></div>
+          <div class="board-stage" id="board-stage">
+            <div class="board-wrap" id="board-wrap">
+              <div class="rank-labels" id="rank-labels" aria-hidden="true"></div>
+              <div class="board" id="board" role="grid" aria-label="Chessboard"></div>
+              <div class="file-labels" id="file-labels" aria-hidden="true"></div>
+            </div>
           </div>
           <div class="board-caption" id="board-caption">Connect to a private game to play. The server validates every move.</div>
         </div>
 
-        <aside class="game-panel">
+        <aside class="game-panel" aria-label="Game information">
           <section class="die-card" aria-labelledby="die-heading">
             <div class="panel-heading">
-              <div><p class="eyebrow">CAPTURE RESOLUTION</p><h2 id="die-heading">The remorse die</h2></div>
-              <span class="d6-icon" aria-hidden="true">D6</span>
+              <div><p class="eyebrow">CAPTURE RESOLUTION</p><h1 id="die-heading">The remorse die</h1></div>
             </div>
             <div class="die-result" id="die-result" aria-live="polite">
-              <span class="die-face" id="die-face">—</span>
+              <span class="die-face empty" id="die-face">—</span>
               <span class="die-copy" id="die-copy">A capture will call for a roll.</span>
             </div>
-            <button class="button button-primary full-width" id="roll-die" type="button" disabled>Roll for the capture</button>
+            <button class="die-roll-button" id="roll-die" type="button" disabled aria-label="Roll the remorse die">
+              <span class="die-cube-stage" aria-hidden="true">
+                <span class="die-cube" id="die-cube">
+                  <span class="die-face cube-face face-1" data-face="1"><i></i></span>
+                  <span class="die-face cube-face face-2" data-face="2"><i></i><i></i></span>
+                  <span class="die-face cube-face face-3" data-face="3"><i></i><i></i><i></i></span>
+                  <span class="die-face cube-face face-4" data-face="4"><i></i><i></i><i></i><i></i></span>
+                  <span class="die-face cube-face face-5" data-face="5"><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="die-face cube-face face-6" data-face="6"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                </span>
+              </span>
+              <span class="die-roll-label" id="die-roll-label">Roll for the capture</span>
+            </button>
             <button class="button button-quiet full-width" id="skip-bonus" type="button" hidden>Skip bonus capture</button>
             <p class="die-note" id="die-note">Both players see the same roll.</p>
           </section>
@@ -129,14 +148,10 @@
             </ul>
             <p class="legend-footnote">The number on each chip is the remaining turn count.</p>
           </section>
-          <section class="activity-card" aria-label="Game activity">
-            <div class="activity-heading"><span class="eyebrow">MATCH STATUS</span><span class="revision" id="revision-label">—</span></div>
-            <p id="activity-message">Create an invite or join a private match to begin.</p>
-          </section>
         </aside>
       </section>
 
-      <footer class="page-footer"><span>Built for two people at one board.</span><span>Private games are cleared when both players leave.</span></footer>
+      <footer class="page-footer"><span>Private games are cleared when both players leave.</span></footer>
     </main>
 
     <dialog id="promotion-dialog" class="promotion-dialog" aria-labelledby="promotion-title">
