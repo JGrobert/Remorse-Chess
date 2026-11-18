@@ -1,0 +1,26 @@
+{
+  "name": "@remorse-chess/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "npm run build --workspace @remorse-chess/protocol && tsc -p tsconfig.json",
+    "typecheck": "npm run build --workspace @remorse-chess/protocol && tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@remorse-chess/protocol": "*"
+  },
+  "devDependencies": {
+    "chess.js": "^1.4.0"
+  }
+}

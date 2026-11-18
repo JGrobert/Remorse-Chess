@@ -1,0 +1,21 @@
+{
+  "name": "remorse-chess",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "playtest:fixture": "node tests/e2e/playtest-server.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
